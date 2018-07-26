@@ -12,7 +12,7 @@
  ******************************************************************************
 """
 """
-This code is from the DL1 documentation, as noted above. No modifications were made, although 
+This code is from the DL1 code, as noted above. No modifications were made, although 
 I have provided documentation below that was not included with the original code. 
 
 Inputs: 
