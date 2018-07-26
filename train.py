@@ -37,52 +37,52 @@ def fnn_input(train_file, val_file, weight_file, num_classes):
 
 	# extract training data for b, c, u jets 
 	train_bjet = trainF['train_processed_bjets'][:]
-    train_cjet = trainF['train_processed_cjets'][:]
-    train_ujet = trainF['train_processed_ujets'][:]
-    # extract validation data 
-    val_bjet = valF['train_processed_bjets'][:]  
-    val_cjet = valF['train_processed_cjets'][:]
-    val_ujet = valF['train_processed_ujets'][:]
+   	train_cjet = trainF['train_processed_cjets'][:]
+    	train_ujet = trainF['train_processed_ujets'][:]
+    	# extract validation data 
+    	val_bjet = valF['train_processed_bjets'][:]  
+    	val_cjet = valF['train_processed_cjets'][:]
+    	val_ujet = valF['train_processed_ujets'][:]
 
-    # configure the variables which are used for the training
-    var_names = list(train_bjet.dtype.names)
-    var_names.remove('label')
+    	# configure the variables which are used for the training
+    	var_names = list(train_bjet.dtype.names)
+    	var_names.remove('label')
 
-    # Note: at this point in BatchTrainModel, there is a function to remove variables 
-    # used for training. However, the list it selects from var_remove is always empty, 
-    # from what I can tell. So I'm excluding this for now. 
+    	# Note: at this point in BatchTrainModel, there is a function to remove variables 
+    	# used for training. However, the list it selects from var_remove is always empty, 
+    	# from what I can tell. So I'm excluding this for now. 
 
-    # extract weight files 
-    c_weight = wF['c_vs_b_weights'][:]
-    u_weight = wF['u_vs_b_weights'][:]
-    b_weight = wF['b_vs_b_weights'][:]
+    	# extract weight files 
+    	c_weight = wF['c_vs_b_weights'][:]
+    	u_weight = wF['u_vs_b_weights'][:]
+    	b_weight = wF['b_vs_b_weights'][:]
 
-    # construct train, validation vectors 
-    X_train = np.concatenate( ( train_ujet, train_cjet, train_bjet ) )  
-    X_val  = np.concatenate( ( test_ujet,  test_cjet,  test_bjet  ) )
+    	# construct train, validation vectors 
+    	X_train = np.concatenate( ( train_ujet, train_cjet, train_bjet ) )  
+    	X_val  = np.concatenate( ( test_ujet,  test_cjet,  test_bjet  ) )
 
-    # construct ground truth labels 
-    y_train = np.concatenate( ( np.zeros(len(train_ujet)), np.ones(len(train_cjet)), 2*np.ones(len(train_bjet)) ) )
-    y_val  = np.concatenate( ( np.zeros(len(val_ujet)), np.ones(len(val_cjet)), 2*np.ones(len(val_bjet)) ) )
+    	# construct ground truth labels 
+    	y_train = np.concatenate( ( np.zeros(len(train_ujet)), np.ones(len(train_cjet)), 2*np.ones(len(train_bjet)) ) )
+    	y_val  = np.concatenate( ( np.zeros(len(val_ujet)), np.ones(len(val_cjet)), 2*np.ones(len(val_bjet)) ) )
 
-    # prepare ground truth labels for categorical cross-entropy loss 
-    # see Keras loss functions documentation 
-    Y_train = to_categorical(y_train, num_classes)   
-    Y_val  = to_categorical(y_val, num_classes)
+    	# prepare ground truth labels for categorical cross-entropy loss 
+    	# see Keras loss functions documentation 
+    	Y_train = to_categorical(y_train, num_classes)   
+   	 Y_val  = to_categorical(y_val, num_classes)
 
-    #### Construct the input vectors #### 
-    X_train = X_train[var_names]
-    X_train = np.array(X_train.tolist())
-    X_val = X_val[var_names]
-    X_val = np.array(X_test.tolist())
+   	 #### Construct the input vectors #### 
+    	X_train = X_train[var_names]
+    	X_train = np.array(X_train.tolist())
+    	X_val = X_val[var_names]
+    	X_val = np.array(X_test.tolist())
 
-    # construct the loss weights vector 
-    X_weights = np.concatenate ( (u_weight, c_weight, b_weight) )
+    	# construct the loss weights vector 
+    	X_weights = np.concatenate ( (u_weight, c_weight, b_weight) )
 
-    # after this, BatchTrainModel shuffles the data; however, I think 
-    # that we can get Keras to do this for us, so I'm excluding it for now 
+    	# after this, BatchTrainModel shuffles the data; however, I think 
+    	# that we can get Keras to do this for us, so I'm excluding it for now 
 
-    return X_train, X_val, Y_train, Y_val, X_weights 
+    	return X_train, X_val, Y_train, Y_val, X_weights 
 
 
 def fnn_train(model, train_file, val_file, weight_file, hyperParams, save=True, filepath="."):
