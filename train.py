@@ -85,7 +85,7 @@ def fnn_input(train_file, val_file, weight_file, num_classes):
     return X_train, X_val, Y_train, Y_val, X_weights 
 
 
-def fnn_train(model, train_file, val_file, weight_file, hyperParams, save=True, filepath=""):
+def fnn_train(model, train_file, val_file, weight_file, hyperParams, save=True, filepath="."):
 	"""
 	Main training function for the FNN model. 
 	Inputs: 
