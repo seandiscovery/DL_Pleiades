@@ -31,9 +31,9 @@ def fnn_input(train_file, val_file, weight_file, num_classes):
 			vector X_weights; also the ground truth labels Y_train and Y_val 
 	"""
 	# open the files 
-	trainF = train_file
-	valF = val_file 
-	wF = weight_file 
+	trainF = h5py.File(train_file, 'r')
+	valF = h5py.File(val_file, 'r') 
+	wF = h5py.File(weight_file, 'r') 
 
 	# extract training data for b, c, u jets 
 	train_bjet = trainF['train_processed_bjets'][:]
