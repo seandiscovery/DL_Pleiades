@@ -68,9 +68,9 @@ def fnn_input(train_file, val_file, weight_file, num_classes):
     	# prepare ground truth labels for categorical cross-entropy loss 
     	# see Keras loss functions documentation 
     	Y_train = to_categorical(y_train, num_classes)   
-   	 Y_val  = to_categorical(y_val, num_classes)
+        Y_val  = to_categorical(y_val, num_classes)
 
-   	 #### Construct the input vectors #### 
+        #### Construct the input vectors #### 
     	X_train = X_train[var_names]
     	X_train = np.array(X_train.tolist())
     	X_val = X_val[var_names]
@@ -118,7 +118,6 @@ def fnn_train(model, train_file, val_file, weight_file, hyperParams, save=True, 
 		model.save(filepath)
 
 	return model_history
-
 
 
 
