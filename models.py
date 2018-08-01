@@ -17,15 +17,16 @@ FNN: Sean Mullane, with input and preprocessing steps (see GitHub repository) ta
         RNN code, CS231N project code (Nicole Hartman + Sean Mullane, Spring 2018)
 ETE: Sean Mullane, Summer 2018 
 """
+from __future__ import division
 import numpy as np
 from keras.models import Model
-from keras.layers import Flatten, Input, Dense, Activation, Dropout, BatchNormalization
+from keras.layers import Masking, Embedding, Flatten, Input, Dense, LSTM, concatenate, Activation, Dropout, BatchNormalization
 import h5py
 from keras.utils.np_utils import to_categorical
 
 ####### Useful global functions ########
 
-def fnn_input(train_file, val_file, weight_file, num_classes):
+def fnn_input(train_file, val_file, weight_file, num_classes=3):
     """
     Adopted from the DL1 repository's BatchTrainModel.py. 
     Input: 
@@ -34,6 +35,7 @@ def fnn_input(train_file, val_file, weight_file, num_classes):
         - val_file: preprocessed validation data, output of preprocessing_fnn.py with 
             --add_dl1 == 1
         - weight_file: preprocessed weight file, output of weightComputation_fnn.py 
+        - num_classes: total number of output classes (default for DL1 is 3) 
 
     Output: The training vector X_train, the validation vector X_val, and the loss weight 
                 vector X_weights; also the ground truth labels Y_train and Y_val 
@@ -93,6 +95,62 @@ def fnn_input(train_file, val_file, weight_file, num_classes):
 
     return X_train, X_val, Y_train, Y_val, X_weights
 
+def rnn_input_simple(input_file, nJets=5e6):
+    """
+    Constructs input vectors for the LSTM RNN, without functionality to select 
+    only a subset of input features, etc. Assumes preprocessed input file.   
+    Adopted from Nicole Hartman's code in trainNet.py. 
+    Inputs: 
+        - input_file: preprocessed hdf5 file, usually output from processNpArray.py 
+        - nJets: number of jets to use during training. If the number of jets is < default 
+                 of 5e6, the model will train on a reduced number of training examples  
+    """ 
+    # open the file 
+    f = h5py.File(input_file,"r")
+
+    # extract relevant vectors 
+    X_train       = f['X_train'][:]
+    y_train       = f['y_train'][:]
+    ix_train      = f['ix_train'][:]
+    weights_train = f['weights_train'][:]
+
+    # truncate the array if nJets < 5e6 
+    """
+    Depracated for testing with ~1k jets 07/30/18 
+    if nJets < 5e6: 
+        nTrain = int(X_train.shape[0] * nJets / 5e6)
+
+        X_train       = X_train[:nTrain]
+        y_train       = y_train[:nTrain]
+        ix_train      = ix_train[:nTrain]
+        weights_train = weights_train[:nTrain]
+    """
+
+    # prepare ground truth labels for categorical cross-entropy 
+    y_train_cat = to_categorical(y_train, num_classes=4)
+
+    return X_train, y_train_cat, ix_train, weights_train 
+
+def processInputs(timeSteps, nFeatures, num_categories=14):
+    """
+    Function to process track inputs when doing categorical embedding. 
+    Written by Nicole Hartman, Winter - Spring 2018; from trainNet.py. 
+    Note: Default for num_categories taken from the global variable N_CATEGORIES 
+    in the file trainNet.py 
+    """
+    cts_trk_inputs = Input(shape=(timeSteps, nFeatures - 1), name="Continuous_trk_inputs")
+    masked_input = Masking()(cts_trk_inputs)
+
+    # Next, look at a 2d embedding layer
+    grade_input = Input(shape=(timeSteps,), name="Categorical_trk_inputs", dtype='int32')
+    embed = Embedding(num_categories + 1, 2, mask_zero=True, input_length=timeSteps)(grade_input)
+
+    # Merge the two layers
+    myMerge = concatenate([masked_input, embed])
+
+    trkEmbeddedInputs = Model(inputs=[cts_trk_inputs, grade_input], outputs=myMerge)
+    return trkEmbeddedInputs
+
 ######## Class Definitions ########## 
 # Classes that define the various models 
 
@@ -143,14 +201,20 @@ class FNN():
             if j == 0: 
                 # initialization 
                 x = Dense(hidden_layers['0'], activation='relu')(fnn_vector)
+                """
+                Depracated for initial model development 07/31 
                 x = BatchNormalization(axis=1)(x)
                 x = Dropout(rate=self.p)(x) 
+                """
 
             else: 
                 # hidden layers 
                 x = Dense(hidden_layers[str(j)], activation='relu')(prev_x)
+                """
+                Deprecated for initial model development 07/31
                 x = BatchNormalization(axis=1)(x)
                 x = Dropout(rate=self.p)(x) 
+                """
         
             # store previous output 
             prev_x = x 
@@ -166,5 +230,67 @@ class FNN():
         # to avoid having to call myModel.model every time the model needs to be used 
         return self.model 
 
+class LSTM_class(): 
 
+    def __init__(self, num_hidden, num_dense, doEmbedding=True, nJets=5e6, maxNumTrks=15, 
+                 timeSteps=15, nFeatures=5, p=0.2, modelName="RNN_model"):
+        """
+        Class for constructing an LSTM RNN model. This code is taken from trainNet.py, written by 
+        Nicole Hartman (SLAC-ATLAS) Winter - Spring 2018, with some minor adjustments/simplifications 
+        to integrate with the DL Pleiades workflow. 
 
+        Inputs: 
+            - num_hidden: number of hidden states for the RNN model (e.g. LSTM)
+            - num_dense: number of dense layers for the FNN following the RNN model
+            - doEmbedding: boolean flag; if True, track category is embedded in input vector (?) 
+            - nJets: number of jets in the dataset
+            - maxNumTrks: maximum number of tracks per jet to process 
+            - timeSteps: number of timesteps for the RNN 
+                NOTE: I believe maxNumtrks == timeSteps 
+            - nFeatures: number of input features 
+            - p: dropout probability 
+            - modelName: a model name, if necessary 
+        """
+        self.hidden = num_hidden
+        self.dense = num_dense
+        self.embed = doEmbedding
+        self.nJets = nJets
+        self.maxTrks = maxNumTrks
+        self.timeSteps = timeSteps
+        self.features = nFeatures
+        self.p = p 
+        self.name = modelName
+
+        num_classes = 4 # from global variable N_CLASSES, trainNet.py 
+
+        # construct embedding, if necessary 
+        if self.embed: 
+            cts_trk_inputs = Input(shape=(self.timeSteps, self.features - 1), name="Continuous_trk_inputs")
+            grade_input = Input(shape=(self.timeSteps,), name="Categorical_trk_inputs", dtype='int32')
+
+            trk_inputs=[cts_trk_inputs, grade_input]
+
+            # note that the global function processInputs returns a model object 
+            # this is why it's passed trk_inputs 
+            masked_input = processInputs(self.timeSteps, self.features)(trk_inputs)
+
+        else: 
+            trk_inputs = Input(shape=(self.timeSteps, self.features), name="Trk_inputs")
+            masked_input = Masking()(trk_inputs)
+
+        # Feed this merged layer to an RNN
+        lstm = LSTM(self.hidden, return_sequences=False)(masked_input)  
+        dpt = Dropout(0.2)(lstm)
+
+        # Fully connected layer
+        FC = Dense(self.dense, activation='relu')(dpt)
+
+        # Softmax for classification
+        output = Dense(num_classes, activation='softmax')(FC)
+        self.model = Model(inputs=trk_inputs, outputs=output)
+
+    def return_model(self): 
+        # convenience function that returns the model constructed above
+        # to avoid having to call myModel.model every time the model needs to be used 
+        return self.model
+    
