@@ -136,7 +136,7 @@ if __name__ == "__main__":
     
     args = p.parse_args()
 
-    train_status = fnn_train_script(args.train_file, args.val_file, args.weight_file, verbose=args.flag)
+    fnn_train_script(args.train_file, args.val_file, args.weight_file, verbose=args.flag)
  
     print("Successfully trained all models!")
          
