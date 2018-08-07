@@ -1,3 +1,4 @@
+from __future__ import print_function
 """
  ******************************************************************************
  * Project: DL1_framework                                                     *
@@ -37,8 +38,6 @@ After this program is run, the ORIGINAL (training) data must be given to weightC
 of weights for the program's loss function. 
 
 """
-
-from __future__ import print_function
 import h5py
 import numpy as np
 import os
@@ -118,15 +117,15 @@ print('Preprocessing ', args.input_file)
 np.random.seed(42)  # for reproducibility
 with h5py.File(args.input_file, 'r') as f:
     print('Total Events = %i' % len(f['jets']))
-    #mini_data = np.random.choice(f['jets'][0:len(f['jets'])],
-                                 #size=args.nentries, replace=False)
+    mini_data = np.random.choice(f['jets'][0:len(f['jets'])],
+                                 size=args.nentries, replace=False)
     
     # for testing, to reduce the processing load 
     # un-comment the above line to process the entire dataset 
     # added Sean Mullane Jul 18 2018 
-    jet_num = 10000
-    mini_data = np.random.choice(f['jets'][0:jet_num],
-                                 size=args.nentries, replace=False)
+    
+    #jet_num = 10000
+    #mini_data = np.random.choice(f['jets'][0:jet_num], size=args.nentries, replace=False)
 
 # --------------------------- splitting data set --------------------------- #
 # in order to make sure that training and testing events are never mixed
