@@ -160,15 +160,17 @@ f = h5py.File(args.input_file, 'r')
 np.random.seed(42)  # for reproducibility
 with h5py.File(args.input_file, 'r') as f:
     print('Total Events = %i' % len(f['jets']))
-    #mini_data = np.random.choice(f['jets'][0:len(f['jets'])],
-                                 #size=args.nentries, replace=False)
+    mini_data = np.random.choice(f['jets'][0:len(f['jets'])],
+                                 size=args.nentries, replace=False)
     
+    """
     # for testing, to reduce the processing load 
     # un-comment the above line to process the entire dataset 
     # added Sean Mullane Jul 20 2018 
     jet_num = 10000
     mini_data = np.random.choice(f['jets'][0:jet_num],
                                  size=args.nentries, replace=False)
+    """
 
 # mini_data = mini_data[0::2]
 mini_data = mini_data[mini_data['eventNumber'] % 2 == 0]
