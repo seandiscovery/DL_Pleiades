@@ -236,6 +236,7 @@ if __name__ == "__main__":
 
     args = p.parse_args()
 
+<<<<<<< HEAD
     ete_train_script(args.dnn_train_file, args.dnn_val_file, args.dnn_weight_file, args.rnn_data, num_classes=3, rnn_timeSteps=15, rnn_Features=5, verbose=args.flag)
 
     """
@@ -252,6 +253,12 @@ if __name__ == "__main__":
         p.add_argument("--verbose", type=bool, default="True", dest="flag", help="Print updates during training")
     
         args = p.parse_args()
+=======
+    fnn_train_script(args.train_file, args.val_file, args.weight_file, verbose=args.flag)
+ 
+    print("Successfully trained all models!")
+         
+>>>>>>> bd0dc45c83e0b985b6806e3a9617bc0ec6e1f672
 
         fnn_train_script(args.train_file, args.val_file, args.weight_file, verbose=args.flag)
 
