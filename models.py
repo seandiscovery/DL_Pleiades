@@ -209,12 +209,12 @@ class FNN():
 
             else: 
                 # hidden layers 
+                # batchnorm included for second layer (three layer network test 08/02) 
                 x = Dense(hidden_layers[str(j)], activation='relu')(prev_x)
-                """
-                Deprecated for initial model development 07/31
-                x = BatchNormalization(axis=1)(x)
-                x = Dropout(rate=self.p)(x) 
-                """
+                if j == 1: 
+                    x = BatchNormalization(axis=1)(x)
+                
+                #x = Dropout(rate=self.p)(x) 
         
             # store previous output 
             prev_x = x 
@@ -288,6 +288,117 @@ class LSTM_class():
         # Softmax for classification
         output = Dense(num_classes, activation='softmax')(FC)
         self.model = Model(inputs=trk_inputs, outputs=output)
+
+    def return_model(self): 
+        # convenience function that returns the model constructed above
+        # to avoid having to call myModel.model every time the model needs to be used 
+        return self.model
+    
+class ETE():
+
+    def __init__(self, dnn_input_dim, dnn_num_hidden=3, dnn_hidden_dims=[150, 100, 50], dnn_out_dim=3, dnn_p=0.5, 
+        rnn_hidden=50, rnn_dim_dense=10, rnn_doEmbedding=True, rnn_timeSteps=15, rnn_Features=5, rnn_p=0.2, fnn_input_dim=46):
+        """
+        End-to-end (ETE) model construction. See the repository Wiki for an overview of the structure of this model.
+        The rnn variables are tagged with "rnn_", while the quantities tagged "dnn_" tag the parameters of the deep 
+        neural network. This DNN trains on the concatenated output of the RNN and the 46-dimensional input vector of DL1.
+        The variable fnn_input_dim gives the dimensionality of the DL1 input vector (defaults to 46 dimensions).
+        Note that we currently do not have a FNN preprocessing layer for the 46-dimensional DL1 input, although this 
+        might be added in later testing (eg to reduce dimensionality of this vector). 
+
+        In the current model, we do the RNN processing and treat the DL1 input vector as an "auxillary input", following 
+        the example of the Keras functional API tutorial: https://keras.io/getting-started/functional-api-guide/
+        """
+        # lone DL1 parameter 
+        self.dl_input = fnn_input_dim
+
+        ## DNN parameters ## 
+        self.dnn_input = dnn_input_dim
+        self.dnn_hidden = dnn_num_hidden
+        self.dnn_out = dnn_out_dim
+        self.dnn_p = dnn_p 
+
+        # construct dictionary to hold DNN hidden dimensions, as in the class FNN above  
+        # Ex: hidden_layers['2'] = number of dimensions in second hidden layer 
+        dnn_hidden_layers = {}
+        for i in range(len(dnn_hidden_dims)):
+            dnn_hidden_layers[str(i)] = dnn_hidden_dims[i] 
+
+        ## RNN parameters ## 
+        self.rnn_hidden = rnn_hidden
+        self.rnn_dense = rnn_dim_dense
+        self.rnn_embed = rnn_doEmbedding
+        self.rnn_steps = rnn_timeSteps
+        self.rnn_feat = rnn_Features
+        self.rnn_p = rnn_p 
+
+        ##### ETE Model Construction ##### 
+
+        """ ------RNN processing------- """
+
+        num_classes = 4 # from global variable N_CLASSES, trainNet.py 
+
+        # construct embedding, if necessary 
+        if self.rnn_embed: 
+            cts_trk_inputs = Input(shape=(self.rnn_steps, self.rnn_feat - 1), name="Continuous_trk_inputs")
+            grade_input = Input(shape=(self.rnn_steps,), name="Categorical_trk_inputs", dtype='int32')
+
+            trk_inputs = [cts_trk_inputs, grade_input]
+            #trk_inputs = concatenate([cts_trk_inputs, grade_input], axis=1)
+
+            # note that the global function processInputs returns a model object 
+            # this is why it's passed trk_inputs 
+            masked_input = processInputs(self.rnn_steps, self.rnn_feat)(trk_inputs)
+
+        else: 
+            trk_inputs = Input(shape=(self.rnn_steps, self.rnn_feat), name="Trk_inputs")
+            masked_input = Masking()(trk_inputs)
+
+        # Feed this merged layer to an RNN
+        lstm = LSTM(self.rnn_hidden, return_sequences=False)(masked_input)  
+        dpt = Dropout(0.2)(lstm)
+
+        # Fully connected layer
+        # an auxiliary output of the model  
+        rnn_output = Dense(self.rnn_dense, activation='relu')(dpt)
+
+        """ -------(Optional) DL1 input preprocessing------- """ 
+        # not included in this version 
+
+        """ ---------RNN + DL1 input concatenation---------- """ 
+        dl_input = Input(shape=(self.dl_input,), dtype='float') 
+        dnn_input = concatenate([rnn_output, dl_input])
+
+        """ --------Combined deep network--------- """
+
+        for j in range(self.dnn_hidden): 
+            if j == 0: 
+                # initialization 
+                x = Dense(dnn_hidden_layers['0'], activation='relu')(dnn_input)
+                """
+                Depracated for initial model development 08/02
+                x = BatchNormalization(axis=1)(x)
+                x = Dropout(rate=self.dnn_p)(x) 
+                """
+
+            else: 
+                # hidden layers 
+                x = Dense(dnn_hidden_layers[str(j)], activation='relu')(prev_x)
+                x = BatchNormalization(axis=1)(x)
+                #x = Dropout(rate=self.dnn_p)(x) 
+        
+            # store previous output 
+            prev_x = x 
+
+        # final softmax layer 
+        results = Dense(self.dnn_out, activation='softmax')(prev_x)
+
+        # define the model 
+        #self.model = Model(inputs=[dl_input, trk_inputs], outputs=[results, rnn_output])
+        if self.rnn_embed: 
+            self.model = Model(inputs=[cts_trk_inputs, grade_input, dl_input], outputs=[rnn_output, results])
+        else: 
+            self.model = Model(inputs=[cts_trk_inputs, dl_input], outputs=[rnn_output, results])
 
     def return_model(self): 
         # convenience function that returns the model constructed above
